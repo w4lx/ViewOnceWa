@@ -6,4 +6,4 @@
 
 Instagram: [walx.craxker](https://www.instagram.com/walx.craxker)
 
-TikTok: [Walter](https://www.tiktok.com/@walx.craxker)
+TikTok: [Walrrix](https://www.tiktok.com/@the.walrrix)

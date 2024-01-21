@@ -4,19 +4,17 @@ import {
   useMultiFileAuthState,
   downloadMediaMessage,
   DisconnectReason,
+  Browsers,
 } from "@whiskeysockets/baileys";
 import { fileTypeFromBuffer } from "file-type";
 import { createInterface } from "node:readline";
 import { keepAlive } from "./server.js";
-import { QuickDB } from "quick.db";
 import { Boom } from "@hapi/boom";
 import pino from "pino";
 
 keepAlive();
 
 async function connectToWA() {
-  const db = new QuickDB();
-
   const readline = createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -28,18 +26,20 @@ async function connectToWA() {
 
   const { state, saveCreds } = await useMultiFileAuthState("auth");
 
+  const browser = Browsers.appropriate("chrome");
+
   const socket = makeWASocket({
     mobile: false,
-    browser: ["FireFox (linux)"],
     auth: state,
     logger: pino({ level: "silent" }),
+    browser,
   });
 
   if (!socket.authState.creds.registered) {
-    const number = await prompt(`\nIntroduce tu número de WhatsApp:\n=> `);
-    const code = await socket.requestPairingCode(number);
+    const number = await prompt(`Introduce tu número de WhatsApp: `);
+    const formatNumber = number.replace(/[\s+-]/g, "");
 
-    db.set("number", { number });
+    const code = await socket.requestPairingCode(formatNumber);
 
     console.log("Tu código de conexión es:", code);
   }
@@ -75,21 +75,22 @@ async function connectToWA() {
 
     if (messages[0]?.key?.fromMe) return;
 
-    const t = Object.keys(messages[0].message)[0];
+    const fileType = Object.keys(messages[0].message)[0];
 
-    console.log(t);
+    if (fileType !== "messageContextInfo" && fileType !== "viewOnceMessageV2") {
+      return;
+    }
 
-    if (t !== "messageContextInfo" && t !== "viewOnceMessageV2") return;
+    const data = await downloadMediaMessage(messages[0], "buffer");
 
-    const media = await downloadMediaMessage(messages[0], "buffer");
+    const { mime } = await fileTypeFromBuffer(data);
 
-    const { mime } = await fileTypeFromBuffer(media);
-    const { number } = await db.get("number");
+    console.log(mime);
 
-    console.log(media);
+    if (!socket?.user?.id) return;
 
-    socket.sendMessage(number + "@s.whatsapp.net", {
-      [mime.split("/")[0] || "document"]: media,
+    socket.sendMessage(socket.user.id, {
+      [mime.split("/")[0] || "document"]: data,
       caption: `Enviado por *${messages[0]?.pushName || "Desconocido"}*`,
     });
   });
