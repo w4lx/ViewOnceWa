@@ -90,7 +90,7 @@ async function connectToWA() {
     if (!socket?.user?.id) return;
 
     socket.sendMessage(socket.user.id, {
-      [mime.split("/")[0] || "document"]: data,
+      [mime?.split("/")[0] || "document"]: data,
       caption: `Enviado por *${messages[0]?.pushName || "Desconocido"}*`,
     });
   });
